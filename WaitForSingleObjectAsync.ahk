@@ -7,12 +7,10 @@
 ; License: See LICENSE (public-domain dedication for original code; third-party rights reserved).
 ;
 ; Original idea and low-level machine-code stub:
-;   Script-Coding.ru ("Серый форум") — "Запуск скрипта не по кнопке, а при событии создания файла"
+;   Script-Coding.ru ("Серый форум") — "AHK: Запуск скрипта не по кнопке, а при событии создания файла"
 ;     https://forum.script-coding.com/viewtopic.php?id=6231
 ;   Script-Coding.ru ("Серый форум") — "AHK: асинхронный вызов Wait-функции"
 ;     https://forum.script-coding.com/viewtopic.php?id=6739
-;   Script-Coding.ru ("Серый форум") — related original post
-;     http://forum.script-coding.com/viewtopic.php?pid=56073#p56073
 ;
 ; Documentation / References:
 ;   AutoHotkey forum — "(winapi) RegNotifyChangeKeyValue Access is denied."
