@@ -4,14 +4,14 @@
 ;
 ; GitHub: https://github.com/SevenKeyboard/wait-for-single-object-async
 ; Author: SevenKeyboard Ltd. (2025)
-; License: The Unlicense
+; License: See LICENSE (public-domain dedication for original code; third-party rights reserved).
 ;
 ; Original idea and low-level machine-code stub:
-;   Script-Coding.ru ("gray forum") — "Запуск скрипта не по кнопке, а при событии создания файла"
+;   Script-Coding.ru ("Серый форум") — "Запуск скрипта не по кнопке, а при событии создания файла"
 ;     https://forum.script-coding.com/viewtopic.php?id=6231
-;   Script-Coding.ru ("gray forum") — "AHK: асинхронный вызов Wait-функции"
+;   Script-Coding.ru ("Серый форум") — "AHK: асинхронный вызов Wait-функции"
 ;     https://forum.script-coding.com/viewtopic.php?id=6739
-;   Script-Coding.ru ("gray forum") — related original post
+;   Script-Coding.ru ("Серый форум") — related original post
 ;     http://forum.script-coding.com/viewtopic.php?pid=56073#p56073
 ;
 ; Documentation / References:
@@ -41,33 +41,31 @@ class WaitForSingleObjectAsync
     class _EventSignal
     {
         __new(hEvent, userFunc)    {
-            this.WM_EVENTSIGNAL := dllCall("RegisterWindowMessage", "Str","WM_EVENTSIGNAL")
+            this.WM_EVENTSIGNAL := dllCall("User32.dll\RegisterWindowMessage", "Str","WM_EVENTSIGNAL")
             this.hEvent     := hEvent
             this.userFunc   := userFunc
-            this.onEvent    := objBindMethod(this, "onEventSignal")
+            this.onEvent    := objBindMethod(this, "_onEventSignal")
             onMessage(this.WM_EVENTSIGNAL, this.onEvent)
-            this.startAddress := this.createWaitFunc(this.hEvent, A_ScriptHwnd, this.WM_EVENTSIGNAL)
+            this.startAddress := this._createWaitFunc(this.hEvent, A_ScriptHwnd, this.WM_EVENTSIGNAL)
             this.Thread := new this._Thread(this.startAddress)
         }
         
-        onEventSignal(wp, _*)    { ;  WM_EVENTSIGNAL
-            if (wp !== this.hEvent)
+        _onEventSignal(wParam, _*)    { ;  WM_EVENTSIGNAL
+            if (wParam !== this.hEvent)
                 return
-
             timer := this.userFunc
             setTimer % timer, -10
-
             this.Thread.wait()
             this.Thread := new this._Thread(this.startAddress)
         }
 
-        createWaitFunc(hEvent, hWnd, msg, timeout := -1)    {
+        _createWaitFunc(hEvent, hWnd, msg, timeout := -1)    {
             params := ["UInt",MEM_COMMIT := 0x1000, "UInt",PAGE_EXECUTE_READWRITE := 0x40, "Ptr"]
-            ptr := dllCall("VirtualAlloc", "Ptr",0, "Ptr",A_PtrSize == 4 ? 49 : 85, params*)
-            hModule      := dllCall("GetModuleHandle", "Str","Kernel32.dll", "Ptr")
-            pWaitForObj  := dllCall("GetProcAddress" , "Ptr",hModule, "AStr","WaitForSingleObject", "Ptr")
-            hModule      := dllCall("GetModuleHandle", "Str","User32.dll", "Ptr")
-            pPostMessage := dllCall("GetProcAddress" , "Ptr",hModule, "AStr","PostMessageW", "Ptr")
+            ptr := dllCall("Kernel32.dll\VirtualAlloc", "Ptr",0, "Ptr",A_PtrSize == 4 ? 49 : 85, params*)
+            hModule      := dllCall("Kernel32.dll\GetModuleHandle", "Str","Kernel32.dll", "Ptr")
+            pWaitForObj  := dllCall("Kernel32.dll\GetProcAddress" , "Ptr",hModule, "AStr","WaitForSingleObject", "Ptr")
+            hModule      := dllCall("Kernel32.dll\GetModuleHandle", "Str","User32.dll", "Ptr")
+            pPostMessage := dllCall("Kernel32.dll\GetProcAddress" , "Ptr",hModule, "AStr","PostMessageW", "Ptr")
             numPut(pWaitForObj , ptr + 0)
             numPut(pPostMessage, ptr + A_PtrSize)
             if (A_PtrSize == 4)    {
@@ -98,14 +96,14 @@ class WaitForSingleObjectAsync
         class _Thread
         {
             __new(startAddress)    {
-                if !this.handle := dllCall("CreateThread", "Int", 0, "Int", 0, "Ptr", startAddress, "Int", 0, "UInt", 0, "Int", 0, "Ptr")
+                if !this.handle := dllCall("Kernel32.dll\CreateThread", "Int", 0, "Int", 0, "Ptr", startAddress, "Int", 0, "UInt", 0, "Int", 0, "Ptr")
                     throw Exception("Failed to create thread.`nError code: " . A_LastError)
             }
             wait()    {
-                dllCall("WaitForSingleObject", "Ptr",this.handle, "Int",-1)
+                dllCall("Kernel32.dll\WaitForSingleObject", "Ptr",this.handle, "Int",-1)
             }
             __delete()    {
-                dllCall("CloseHandle", "Ptr",this.handle)
+                dllCall("Kernel32.dll\CloseHandle", "Ptr",this.handle)
             }
         }
         
@@ -113,7 +111,7 @@ class WaitForSingleObjectAsync
             this.Thread.wait()
             onMessage(this.WM_EVENTSIGNAL, this.onEvent, 0)
             this.onEvent := ""
-            dllCall("VirtualFree", "Ptr",this.startAddress - A_PtrSize * 2, "Ptr",A_PtrSize == 4 ? 49 : 85, "UInt",MEM_DECOMMIT := 0x4000)
+            dllCall("Kernel32.dll\VirtualFree", "Ptr",this.startAddress - A_PtrSize * 2, "Ptr",A_PtrSize == 4 ? 49 : 85, "UInt",MEM_DECOMMIT := 0x4000)
         }
     }
 }
