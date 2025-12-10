@@ -50,7 +50,7 @@ class WaitForSingleObjectAsync
             this.Thread := WaitForSingleObjectAsync._EventSignal._Thread(this.startAddress)
         }
         
-        onEventSignal(wp)    { ;  WM_EVENTSIGNAL
+        onEventSignal(wp, *)    { ;  WM_EVENTSIGNAL
             if (wp !== this.hEvent)
                 return
 
