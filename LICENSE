@@ -31,9 +31,10 @@ The underlying idea and low-level machine-code stub used for the asynchronous
 wait helper are based on discussions and example code posted on
 Script-Coding.ru ("Серый форум"), including but not limited to:
 
-  "Запуск скрипта не по кнопке, а при событии создания файла"
+  "AHK: Запуск скрипта не по кнопке, а при событии создания файла"
+  <https://forum.script-coding.com/viewtopic.php?id=6231>
   "AHK: асинхронный вызов Wait-функции"
-  http://forum.script-coding.com/viewtopic.php?pid=56073#p56073
+  <https://forum.script-coding.com/viewtopic.php?id=6739>
 
 To the extent that any copyright subsists in those original posts or code
 snippets, such rights remain with their respective authors. Nothing in this
