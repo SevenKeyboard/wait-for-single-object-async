@@ -1,24 +1,45 @@
-This is free and unencumbered software released into the public domain.
+Copyright (c) 2025 SevenKeyboard Ltd. and other contributors.
 
-Anyone is free to copy, modify, publish, use, compile, sell, or
-distribute this software, either in source code form or as a compiled
-binary, for any purpose, commercial or non-commercial, and by any
-means.
+This project contains original code written by SevenKeyboard Ltd. as well as
+underlying ideas and low-level machine-code stubs inspired by third-party
+forum posts as described below.
 
-In jurisdictions that recognize copyright laws, the author or authors
-of this software dedicate any and all copyright interest in the
-software to the public domain. We make this dedication for the benefit
-of the public at large and to the detriment of our heirs and
-successors. We intend this dedication to be an overt act of
-relinquishment in perpetuity of all present and future rights to this
-software under copyright law.
+To the extent that copyright subsists in the original code written by
+SevenKeyboard Ltd., such original code is free and unencumbered software
+released into the public domain.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
-OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
-ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-OTHER DEALINGS IN THE SOFTWARE.
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute
+such original code, either in source code form or as a compiled binary, for
+any purpose, commercial or non-commercial, and by any means.
 
-For more information, please refer to <https://unlicense.org>
+In jurisdictions that recognize copyright laws, SevenKeyboard Ltd. dedicates
+any and all copyright interest in its original code in this project to the
+public domain. We make this dedication for the benefit of the public at large
+and to the detriment of our heirs and successors. We intend this dedication to
+be an overt act of relinquishment in perpetuity of all present and future
+rights to our original code under copyright law.
+
+THE ORIGINAL CODE BY SEVENKEYBOARD LTD. IS PROVIDED "AS IS", WITHOUT WARRANTY
+OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE ORIGINAL CODE OR THE USE OR OTHER DEALINGS
+IN THE ORIGINAL CODE.
+
+The underlying idea and low-level machine-code stub used for the asynchronous
+wait helper are based on discussions and example code posted on
+Script-Coding.ru ("Серый форум"), including but not limited to:
+
+  "Запуск скрипта не по кнопке, а при событии создания файла"
+  "AHK: асинхронный вызов Wait-функции"
+  http://forum.script-coding.com/viewtopic.php?pid=56073#p56073
+
+To the extent that any copyright subsists in those original posts or code
+snippets, such rights remain with their respective authors. Nothing in this
+notice is intended to waive, transfer, or re-license any third-party rights
+beyond what is permitted by applicable law or by the original authors
+themselves.
+
+For more information about the public-domain dedication used here, see
+<https://unlicense.org>
