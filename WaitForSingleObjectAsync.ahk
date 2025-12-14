@@ -1,4 +1,4 @@
-﻿#Requires AutoHotkey v1.1.0+
+﻿#Requires AutoHotkey v1.1.35+
 ;==============================================================
 ; WaitForSingleObjectAsync — Async wait helper for Win32 event handles
 ;
