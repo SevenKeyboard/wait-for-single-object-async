@@ -95,7 +95,7 @@ class WaitForSingleObjectAsync
         {
             __new(startAddress)    {
                 if !this.handle := dllCall("Kernel32.dll\CreateThread", "Int", 0, "Int", 0, "Ptr", startAddress, "Int", 0, "UInt", 0, "Int", 0, "Ptr")
-                    throw Exception("Failed to create thread.`nError code: " . A_LastError)
+                    throw exception("Failed to create thread.`nError code: " . A_LastError)
             }
             wait()    {
                 dllCall("Kernel32.dll\WaitForSingleObject", "Ptr",this.handle, "Int",-1)
