@@ -23,72 +23,149 @@ class VersionManager_WaitForSingleObjectAsync
     static _ := VersionManager_WaitForSingleObjectAsync._init()
     _init()    {
         global
-        WAITFORSINGLEOBJECTASYNC_VERSION := "1.0.0"
+        WAITFORSINGLEOBJECTASYNC_VERSION := "1.1.0"
     }
 }
 class WaitForSingleObjectAsync
 {
     __new(hEvent, userFunc)    {
+        this.EventSignal := ""
         this.EventSignal := new this._EventSignal(hEvent, userFunc)
     }
 
     __delete()    {
-        this.EventSignal.clear()
+        if (isObject(this.EventSignal))
+            this.EventSignal._dispose()
+        this.EventSignal := ""
     }
 
     class _EventSignal
     {
         __new(hEvent, userFunc)    {
+            this._disposed := false
             this.WM_EVENTSIGNAL := dllCall("User32.dll\RegisterWindowMessage", "Str","WM_EVENTSIGNAL")
-            this.hEvent     := hEvent
-            this.userFunc   := userFunc
-            this.onEvent    := objBindMethod(this, "_onEventSignal")
-            onMessage(this.WM_EVENTSIGNAL, this.onEvent)
-            this.startAddress := this._createWaitFunc(this.hEvent, A_ScriptHwnd, this.WM_EVENTSIGNAL)
-            this.Thread := new this._Thread(this.startAddress)
+            this.hEvent       := hEvent
+            this.userFunc     := userFunc
+            this.hCancelEvent := 0
+            this.onEvent       := ""
+            this.timerCallback := ""
+            this._isMessageMonitorRegistered := false
+            this.startAddress := 0
+            this.Thread := ""
+            this.hCancelEvent := dllCall("Kernel32.dll\CreateEvent", "Ptr",0, "Int",false, "Int",false, "Ptr",0, "Ptr")
+            if (!this.hCancelEvent)
+                throw exception("Failed to create cancellation event.`nError code: " . A_LastError)
+            try    {
+                this.onEvent       := objBindMethod(this, "_onEventSignal")
+                this.timerCallback := objBindMethod(this, "_callUserFunc")
+                onMessage(this.WM_EVENTSIGNAL, this.onEvent)
+                this._isMessageMonitorRegistered := true
+                this.startAddress := this._createWaitFunc(this.hEvent, this.hCancelEvent, A_ScriptHwnd, this.WM_EVENTSIGNAL)
+                this.Thread := new this._Thread(this.startAddress)
+            }  catch e  {
+                this._dispose()
+                throw e
+            }
         }
         
-        _onEventSignal(wParam, _*)    { ;  WM_EVENTSIGNAL
+        _onEventSignal(wParam, waitResult, _*)    { ;  WM_EVENTSIGNAL
+            static WAIT_OBJECT_0 := 0
             if (wParam !== this.hEvent)
                 return
-            timer := this.userFunc
-            setTimer % timer, -10
-            this.Thread.wait()
-            this.Thread := new this._Thread(this.startAddress)
+            prevCritical := A_IsCritical
+            critical % "On"
+            try    {
+                if (this._disposed || waitResult !== WAIT_OBJECT_0)
+                    return
+                timer := this.timerCallback
+                setTimer % timer, -10
+                this.Thread.wait()
+                this.Thread := ""
+                this.Thread := new this._Thread(this.startAddress)
+            }  finally  {
+                critical % prevCritical
+            }
         }
 
-        _createWaitFunc(hEvent, hWnd, msg, timeout := -1)    {
+        _callUserFunc()    {
+            if (this._disposed)
+                return
+            userFunc := this.userFunc
+            if (isObject(userFunc))
+                return userFunc.call()
+            if (isFunc(userFunc))
+                return %userFunc%()
+            gosub % userFunc
+        }
+
+        _createWaitFunc(hEvent, hCancelEvent, hWnd, msg, timeout := -1)    {
+            /*
+            Native worker equivalent:
+                handles[0] := hEvent
+                handles[1] := hCancelEvent
+                waitResult := WaitForMultipleObjects(2, &handles, false, timeout)
+                PostMessageW(hWnd, msg, hEvent, waitResult)
+
+            Memory layout before the executable code:
+                0 * A_PtrSize: WaitForMultipleObjects address
+                1 * A_PtrSize: PostMessageW address
+                2 * A_PtrSize: hEvent
+                3 * A_PtrSize: hCancelEvent
+            */
+            allocationSize := A_PtrSize == 4 ? 67 : 105
             params := ["UInt",MEM_COMMIT := 0x1000, "UInt",PAGE_EXECUTE_READWRITE := 0x40, "Ptr"]
-            ptr := dllCall("Kernel32.dll\VirtualAlloc", "Ptr",0, "Ptr",A_PtrSize == 4 ? 49 : 85, params*)
-            hModule      := dllCall("Kernel32.dll\GetModuleHandle", "Str","Kernel32.dll", "Ptr")
-            pWaitForObj  := dllCall("Kernel32.dll\GetProcAddress" , "Ptr",hModule, "AStr","WaitForSingleObject", "Ptr")
-            hModule      := dllCall("Kernel32.dll\GetModuleHandle", "Str","User32.dll", "Ptr")
-            pPostMessage := dllCall("Kernel32.dll\GetProcAddress" , "Ptr",hModule, "AStr","PostMessageW", "Ptr")
-            numPut(pWaitForObj , ptr + 0)
-            numPut(pPostMessage, ptr + A_PtrSize)
+            ptr := dllCall("Kernel32.dll\VirtualAlloc", "Ptr",0, "Ptr",allocationSize, params*)
+            hModule         := dllCall("Kernel32.dll\GetModuleHandle", "Str","Kernel32.dll", "Ptr")
+            pWaitForObjects := dllCall("Kernel32.dll\GetProcAddress", "Ptr",hModule, "AStr","WaitForMultipleObjects", "Ptr")
+            hModule         := dllCall("Kernel32.dll\GetModuleHandle", "Str","User32.dll", "Ptr")
+            pPostMessage    := dllCall("Kernel32.dll\GetProcAddress" , "Ptr",hModule, "AStr","PostMessageW", "Ptr")
+            numPut(pWaitForObjects, ptr + 0)
+            numPut(pPostMessage   , ptr + A_PtrSize)
+            numPut(hEvent         , ptr + A_PtrSize * 2, 0, "Ptr")
+            numPut(hCancelEvent   , ptr + A_PtrSize * 3, 0, "Ptr")
             if (A_PtrSize == 4)    {
-                numPut(0x68   , ptr +  8)
-                numPut(timeout, ptr +  9)           , numPut(0x68  , ptr + 13)
-                numPut(hEvent , ptr + 14)           , numPut(0x15FF, ptr + 18)
-                numPut(ptr    , ptr + 20)           , numPut(0x6850, ptr + 24)
-                numPut(hEvent , ptr + 26)           , numPut(0x68  , ptr + 30)
-                numPut(msg    , ptr + 31)           , numPut(0x68  , ptr + 35)
-                numPut(hWnd   , ptr + 36)           , numPut(0x15FF, ptr + 40)
-                numPut(ptr + 4, ptr + 42)           , numPut(0xC2  , ptr + 46, "UChar")
-                numPut(4      , ptr + 47, "UShort")
+                code := ptr + 16
+
+                ;  WaitForMultipleObjects(2, ptr + 8, false, timeout)
+                numPut(0x68  , code +  0, 0, "UChar")   , numPut(timeout, code +  1)
+                numPut(0x68  , code +  5, 0, "UChar")   , numPut(0      , code +  6)
+                numPut(0x68  , code + 10, 0, "UChar")   , numPut(ptr + 8, code + 11)
+                numPut(0x68  , code + 15, 0, "UChar")   , numPut(2      , code + 16)
+                numPut(0x15FF, code + 20, 0, "UShort")  , numPut(ptr    , code + 22)
+
+                ;  PostMessageW(hWnd, msg, hEvent, waitResult)
+                numPut(0x50  , code + 26, 0, "UChar")
+                numPut(0x68  , code + 27, 0, "UChar")   , numPut(hEvent , code + 28)
+                numPut(0x68  , code + 32, 0, "UChar")   , numPut(msg    , code + 33)
+                numPut(0x68  , code + 37, 0, "UChar")   , numPut(hWnd   , code + 38)
+                numPut(0x15FF, code + 42, 0, "UShort")  , numPut(ptr + 4, code + 44)
+
+                ;  Return from the thread procedure.
+                numPut(0xC2, code + 48, 0, "UChar")     , numPut(4, code + 49, 0, "UShort")
             }  else  {
-                numPut(0x53      , ptr + 16)
-                numPut(0x20EC8348, ptr + 17)        , numPut(0xBACB8948, ptr + 21)
-                numPut(timeout   , ptr + 25)        , numPut(0xB948    , ptr + 29)
-                numPut(hEvent    , ptr + 31)        , numPut(0x15FF    , ptr + 39)
-                numPut(-45       , ptr + 41)        , numPut(0xB849    , ptr + 45)
-                numPut(hEvent    , ptr + 47)        , numPut(0xBA      , ptr + 55)
-                numPut(msg       , ptr + 56)        , numPut(0xB948    , ptr + 60)
-                numPut(hWnd      , ptr + 62)        , numPut(0xC18941  , ptr + 70)
-                numPut(0x15FF    , ptr + 73)        , numPut(-71       , ptr + 75)
-                numPut(0x20C48348, ptr + 79, "UInt"), numPut(0xC35B    , ptr + 83, "UShort")
+                code := ptr + 32
+
+                ;  Reserve stack space for Win64 calls.
+                numPut(0x28EC8348, code +  0, 0, "UInt")
+
+                ;  WaitForMultipleObjects(2, ptr + 16, false, timeout)
+                numPut(0xB941    , code +  4, 0, "UShort")  , numPut(timeout , code +  6)
+                numPut(0x3145    , code + 10, 0, "UShort")  , numPut(0xC0    , code + 12, 0, "UChar")
+                numPut(0xBA48    , code + 13, 0, "UShort")  , numPut(ptr + 16, code + 15, 0, "Ptr")
+                numPut(0xB9      , code + 23, 0, "UChar")   , numPut(2       , code + 24)
+                numPut(0x15FF    , code + 28, 0, "UShort")  , numPut(-66     , code + 30)
+
+                ;  PostMessageW(hWnd, msg, hEvent, waitResult)
+                numPut(0x8941    , code + 34, 0, "UShort")  , numPut(0xC1  , code + 36, 0, "UChar")
+                numPut(0xB849    , code + 37, 0, "UShort")  , numPut(hEvent, code + 39, 0, "Ptr")
+                numPut(0xBA      , code + 47, 0, "UChar")   , numPut(msg   , code + 48)
+                numPut(0xB948    , code + 52, 0, "UShort")  , numPut(hWnd  , code + 54, 0, "Ptr")
+                numPut(0x15FF    , code + 62, 0, "UShort")  , numPut(-92   , code + 64)
+
+                ;  Restore the stack and return from the thread procedure.
+                numPut(0x28C48348, code + 68, 0, "UInt")    , numPut(0xC3, code + 72, 0, "UChar")
             }
-            return ptr + A_PtrSize * 2
+            return code
         }
         
         class _Thread
@@ -105,11 +182,40 @@ class WaitForSingleObjectAsync
             }
         }
         
-        clear()    {
-            this.Thread.wait()
-            onMessage(this.WM_EVENTSIGNAL, this.onEvent, 0)
-            this.onEvent := ""
-            dllCall("Kernel32.dll\VirtualFree", "Ptr",this.startAddress - A_PtrSize * 2, "Ptr",A_PtrSize == 4 ? 49 : 85, "UInt",MEM_DECOMMIT := 0x4000)
+        _dispose()    {
+            if (this._disposed)
+                return
+            prevCritical := A_IsCritical
+            critical % "On"
+            try    {
+                this._disposed := true
+                timer := this.timerCallback
+                if (isObject(timer))
+                    setTimer % timer, Off
+                if (this._isMessageMonitorRegistered)    {
+                    onMessage(this.WM_EVENTSIGNAL, this.onEvent, 0)
+                    this._isMessageMonitorRegistered := false
+                }
+                if (this.hCancelEvent)
+                    dllCall("Kernel32.dll\SetEvent", "Ptr",this.hCancelEvent)
+                if (isObject(this.Thread))    {
+                    this.Thread.wait()
+                    this.Thread := ""
+                }
+                this.onEvent       := ""
+                this.timerCallback := ""
+                this.userFunc      := ""
+                if (this.startAddress)    {
+                    dllCall("Kernel32.dll\VirtualFree", "Ptr",this.startAddress - A_PtrSize * 4, "Ptr",0, "UInt",MEM_RELEASE := 0x8000)
+                    this.startAddress := 0
+                }
+                if (this.hCancelEvent)    {
+                    dllCall("Kernel32.dll\CloseHandle", "Ptr",this.hCancelEvent)
+                    this.hCancelEvent := 0
+                }
+            }  finally  {
+                critical % prevCritical
+            }
         }
     }
 }
